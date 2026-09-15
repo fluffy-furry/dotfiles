@@ -234,19 +234,23 @@ starship::configure_zsh() {
             in_block = 0
             next
         }
-        !in_block { print }
+        !in_block {
+            print
+            last_line = $0
+            output_lines++
+        }
         END {
             if (in_block) {
                 exit 1
+            }
+            if (output_lines && last_line != "") {
+                print ""
             }
         }
     ' "$zshrc" > "$TEMP_ZSHRC"; then
         common::die "The existing managed Starship block in $zshrc is incomplete."
     fi
 
-    if [[ -s "$TEMP_ZSHRC" ]]; then
-        printf '\n' >> "$TEMP_ZSHRC"
-    fi
     printf '%s\n' \
         "$ZSHRC_BEGIN" \
         "eval \"\$(\"$STARSHIP_BIN\" init zsh)\"" \
