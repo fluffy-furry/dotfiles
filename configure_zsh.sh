@@ -98,9 +98,7 @@ zsh_setup::configure() {
 }
 
 main() {
-    if ! common::resolve_target_user; then
-        common::die "Refusing to run as root without an invoking user. Run as your user or with sudo from your account."
-    fi
+    common::require_target_user
 
     trap zsh_setup::cleanup EXIT
 

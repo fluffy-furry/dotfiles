@@ -5,10 +5,7 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 common::step "Preparing pyenv installer..."
 
-if ! common::resolve_target_user; then
-    common::error "Refusing to run as root without an invoking user. Run as your user or with sudo from your account."
-    exit 1
-fi
+common::require_target_user
 
 common::detail "Target user: ${TARGET_USER}"
 common::detail "Target home: ${TARGET_HOME}"

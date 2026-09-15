@@ -3,9 +3,7 @@ set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
-if ! common::resolve_target_user; then
-    common::die "Refusing to run as root without an invoking user. Run as your user, or use sudo from your account."
-fi
+common::require_target_user
 
 run_as_target() {
     common::run_as_target "$1"

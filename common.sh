@@ -76,6 +76,11 @@ common::resolve_target_user() {
     fi
 }
 
+common::require_target_user() {
+    common::resolve_target_user ||
+        common::die 'Refusing to run as root without an invoking user. Run as your user or with sudo from your account.'
+}
+
 common::run_as_target() {
     local command="$1"
     if [[ "${AS_ROOT:-false}" == true ]]; then
