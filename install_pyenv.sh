@@ -3,6 +3,19 @@ set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
+CONFIGURE_ALL_SHELLS=false
+for argument in "$@"; do
+    case "$argument" in
+        --all-shells) CONFIGURE_ALL_SHELLS=true ;;
+        -h|--help)
+            common::detail 'Usage: install_pyenv.sh [--all-shells]'
+            common::detail 'Initialize both Bash and Zsh with --all-shells; otherwise configure the login shell.'
+            exit 0
+        ;;
+        *) common::die "Unknown option: $argument" ;;
+    esac
+done
+
 common::step "Preparing pyenv installer..."
 
 common::require_target_user
@@ -11,8 +24,9 @@ common::detail "Target user: ${TARGET_USER}"
 common::detail "Target home: ${TARGET_HOME}"
 
 DEPS=(make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev \
-libsqlite3-dev curl git libncursesw5-dev xz-utils tk-dev \
-libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libzstd-dev)
+libsqlite3-dev curl git libncurses-dev xz-utils tk-dev \
+libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev libzstd-dev \
+pkg-config libgdbm-dev libgdbm-compat-dev uuid-dev)
 
 common::step "Checking for missing apt packages..."
 TO_INSTALL=()
@@ -25,11 +39,11 @@ done
 if [ "${#TO_INSTALL[@]}" -gt 0 ]; then
     common::step "Installing packages: ${TO_INSTALL[*]}"
     if [[ "$AS_ROOT" == true ]]; then
-        apt update
-        apt install -y "${TO_INSTALL[@]}"
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y "${TO_INSTALL[@]}"
     else
-        sudo apt update
-        sudo apt install -y "${TO_INSTALL[@]}"
+        sudo apt-get update
+        sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${TO_INSTALL[@]}"
     fi
     common::detail "Packages installed"
 else
@@ -142,27 +156,27 @@ if [[ -x "$PYENV_DIR/plugins/pyenv-virtualenv/bin/pyenv-virtualenv" ]]; then
     ENABLE_VIRTUALENV=true
 fi
 
-case "$SHELL_NAME" in
-    bash)
-        BASH_PROFILE="$TARGET_HOME/.profile"
-        for candidate in .bash_profile .bash_login .profile; do
-            if [[ -f "$TARGET_HOME/$candidate" ]]; then
-                BASH_PROFILE="$TARGET_HOME/$candidate"
-                break
-            fi
-        done
-        configure_shell_file "$TARGET_HOME/.bashrc" bash "$ENABLE_VIRTUALENV"
-        configure_shell_file "$BASH_PROFILE" bash false
-    ;;
-    zsh)
-        configure_shell_file "$TARGET_HOME/.zshrc" zsh "$ENABLE_VIRTUALENV"
-        configure_shell_file "$TARGET_HOME/.zprofile" zsh false
-    ;;
-    *)
-        common::warn "Unsupported login shell '${SHELL_NAME:-unknown}'; shell startup files were not changed."
-        common::detail "Configure it with: ${PYENV_BIN} init --install" >&2
-    ;;
-esac
+if [[ "$CONFIGURE_ALL_SHELLS" == true || "$SHELL_NAME" == bash ]]; then
+    BASH_PROFILE="$TARGET_HOME/.profile"
+    for candidate in .bash_profile .bash_login .profile; do
+        if [[ -f "$TARGET_HOME/$candidate" ]]; then
+            BASH_PROFILE="$TARGET_HOME/$candidate"
+            break
+        fi
+    done
+    configure_shell_file "$TARGET_HOME/.bashrc" bash "$ENABLE_VIRTUALENV"
+    configure_shell_file "$BASH_PROFILE" bash false
+fi
+
+if [[ "$CONFIGURE_ALL_SHELLS" == true || "$SHELL_NAME" == zsh ]]; then
+    configure_shell_file "$TARGET_HOME/.zshrc" zsh "$ENABLE_VIRTUALENV"
+    configure_shell_file "$TARGET_HOME/.zprofile" zsh false
+fi
+
+if [[ "$CONFIGURE_ALL_SHELLS" == false && "$SHELL_NAME" != bash && "$SHELL_NAME" != zsh ]]; then
+    common::warn "Unsupported login shell '${SHELL_NAME:-unknown}'; shell startup files were not changed."
+    common::detail "Configure it with: ${PYENV_BIN} init --install" >&2
+fi
 
 common::step 'Caveats'
 common::detail "Restart with: exec \"\$SHELL\""
